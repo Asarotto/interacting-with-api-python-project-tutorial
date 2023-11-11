@@ -1,15 +1,42 @@
 import os
-from sqlalchemy import create_engine
+import seaborn as sns
 import pandas as pd
+import matplotlib.pyplot as plt
 from dotenv import load_dotenv
-
-# load the .env file variables
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+def fetch_top_tracks(artist_id):
+    con = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=client_id,
+                                                                client_secret=client_secret))
+    response = con.artist_top_tracks(artist_id)
+    return response['tracks'] if response else []
+def process_tracks(tracks):
+    data = []
+    for track in tracks:
+        minutes = track["duration_ms"] // (1000 * 60)
+        seconds = (track["duration_ms"] // 1000) % 60
+        duration_minutes = track["duration_ms"] / (1000 * 60)
+        data.append({
+            "name": track["name"],
+            "popularity": track["popularity"],
+            "duration_minutes": duration_minutes,
+            "formatted_duration": f"{minutes}:{seconds:02}"
+        })
+    return data
 load_dotenv()
-
-# 1) Connect to the database here using the SQLAlchemy's create_engine function
-
-# 2) Execute the SQL sentences to create your tables using the SQLAlchemy's execute function
-
-# 3) Execute the SQL sentences to insert your data using the SQLAlchemy's execute function
-
-# 4) Use pandas to print one of the tables as dataframes using read_sql function
+client_id = os.environ.get('CLIENT_ID')
+client_secret = os.environ.get('CLIENT_SECRET')
+artist_id = "3TVXtAsR1Inumwj472S9r4"
+tracks = fetch_top_tracks(artist_id)
+processed_tracks = process_tracks(tracks)
+tracks_df = pd.DataFrame.from_records(processed_tracks)
+tracks_df.sort_values(["popularity"], inplace=True)
+print(tracks_df.head(3))
+plt.figure(figsize=(10, 6))
+scatter_plot = sns.scatterplot(data=tracks_df, x="popularity", y="duration_minutes")
+plt.title("Relación entre Popularidad y Duración de las Canciones")
+plt.ylabel("Duración (minutos)")
+plt.xlabel("Popularidad")
+plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.savefig("scatter_plot.png")
